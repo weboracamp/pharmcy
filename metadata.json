@@ -1,0 +1,6 @@
+{
+  "name": "PharmaChain Management & Store",
+  "description": "Multi-branch pharmacy management system with fast POS, inventory tracking, role-based workflows, delivery driver portal, and customer online store.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
