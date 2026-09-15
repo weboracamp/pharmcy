@@ -27,6 +27,18 @@ import {
   initialShifts
 } from '../data/mockData';
 import { translations } from '../lib/translations';
+import { supabase } from '../lib/supabase';
+
+export const guestCustomerProfile: Profile = {
+  id: 'guest-customer',
+  email: '',
+  full_name: 'Store Customer',
+  role: 'customer',
+  branch_id: null,
+  phone: '',
+  avatar_url: '',
+  created_at: '2026-01-01T00:00:00Z'
+};
 
 export interface CartItem {
   product: Product;
@@ -43,6 +55,8 @@ interface PharmacyContextType {
   currentRole: UserRole;
   setCurrentRole: (role: UserRole) => void;
   switchUserRole: (role: UserRole, branchId?: string, specificUserId?: string) => void;
+  setAuthenticatedUser: (profile: Profile) => void;
+  logoutUser: () => Promise<void>;
   allProfiles: Profile[];
   addProfile: (profile: Omit<Profile, 'id' | 'created_at'>) => void;
   deleteStaffProfile: (profileId: string) => void;
@@ -146,7 +160,7 @@ export const PharmacyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
 
   const [currentRole, setCurrentRoleState] = useState<UserRole>('customer');
-  const [currentUser, setCurrentUser] = useState<Profile>(initialProfiles[0]);
+  const [currentUser, setCurrentUser] = useState<Profile>(guestCustomerProfile);
 
   const [categories] = useState<Category[]>(initialCategories);
 
@@ -243,45 +257,81 @@ export const PharmacyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const clearToast = () => setRecentToast(null);
 
-  // Switch Role helper
-  const switchUserRole = (role: UserRole, branchId?: string, specificUserId?: string) => {
-    setCurrentRoleState(role);
-    if (specificUserId) {
-      const specific = allProfiles.find(p => p.id === specificUserId);
-      if (specific) {
-        setCurrentUser(specific);
-        if (specific.branch_id) {
-          const foundBranch = branches.find(b => b.id === specific.branch_id);
-          if (foundBranch) setCurrentBranch(foundBranch);
-        }
-        return;
-      }
+  // Switch Role helper - ONLY allows reverting to guest customer, never unauthenticated role elevation
+  const switchUserRole = (role: UserRole, _branchId?: string, _specificUserId?: string) => {
+    if (role === 'customer') {
+      setCurrentRoleState('customer');
+      setCurrentUser(guestCustomerProfile);
+      return;
     }
-
-    if (role === 'admin') {
-      const adminUser = allProfiles.find(p => p.role === 'admin') || initialProfiles[0];
-      setCurrentUser(adminUser);
-    } else if (role === 'cashier') {
-      const targetBranchId = branchId || currentBranch.id;
-      const cashierUser = allProfiles.find(p => p.role === 'cashier' && p.branch_id === targetBranchId) || 
-                          allProfiles.find(p => p.role === 'cashier') || initialProfiles[1];
-      setCurrentUser(cashierUser);
-      if (cashierUser.branch_id) {
-        const foundBranch = branches.find(b => b.id === cashierUser.branch_id);
-        if (foundBranch) setCurrentBranch(foundBranch);
-      }
-    } else if (role === 'driver') {
-      const driverUser = allProfiles.find(p => p.role === 'driver') || initialProfiles[3];
-      setCurrentUser(driverUser);
-    } else {
-      const customerUser = allProfiles.find(p => p.role === 'customer') || initialProfiles[5];
-      setCurrentUser(customerUser);
-    }
+    console.warn(`Unauthenticated role elevation to "${role}" is blocked. Authentication via Supabase Auth is strictly required.`);
   };
 
   const setCurrentRole = (role: UserRole) => {
     switchUserRole(role);
   };
+
+  // Explicitly set an authenticated user who has verified credentials with Supabase Auth
+  const setAuthenticatedUser = (profile: Profile) => {
+    setCurrentUser(profile);
+    setCurrentRoleState(profile.role);
+    if (profile.branch_id) {
+      const foundBranch = branches.find(b => b.id === profile.branch_id);
+      if (foundBranch) setCurrentBranch(foundBranch);
+    }
+  };
+
+  // Sign out from Supabase Auth and reset to guest customer
+  const logoutUser = async () => {
+    try {
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+    } catch (err) {
+      console.warn('Supabase signOut error:', err);
+    }
+    setCurrentUser(guestCustomerProfile);
+    setCurrentRoleState('customer');
+    window.location.hash = '';
+  };
+
+  // Check for active Supabase Auth session on app load and listen for signout
+  useEffect(() => {
+    if (!supabase) return;
+
+    let isMounted = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted || !session?.user) return;
+      supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single()
+        .then(({ data: profile }) => {
+          if (!isMounted || !profile) return;
+          if (profile.role !== 'customer') {
+            setCurrentUser(profile);
+            setCurrentRoleState(profile.role);
+            if (profile.branch_id) {
+              const b = branches.find(branch => branch.id === profile.branch_id);
+              if (b) setCurrentBranch(b);
+            }
+          }
+        });
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        setCurrentUser(guestCustomerProfile);
+        setCurrentRoleState('customer');
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription?.unsubscribe();
+    };
+  }, [branches]);
 
   const addProfile = (profileData: Omit<Profile, 'id' | 'created_at'>) => {
     const newProfile: Profile = {
@@ -816,6 +866,8 @@ export const PharmacyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         currentRole,
         setCurrentRole,
         switchUserRole,
+        setAuthenticatedUser,
+        logoutUser,
         allProfiles,
         addProfile,
         deleteStaffProfile,

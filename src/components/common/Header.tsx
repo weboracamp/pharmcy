@@ -37,7 +37,8 @@ export const Header: React.FC<HeaderProps> = ({
     branches,
     currentBranch,
     setCurrentBranch,
-    cart
+    cart,
+    logoutUser
   } = usePharmacy();
 
   const isAr = language === 'ar';
@@ -46,11 +47,12 @@ export const Header: React.FC<HeaderProps> = ({
   const isStaffPortal = activeView !== 'store' && currentRole !== 'customer';
 
   // Handler to return to public store
-  const handleExit = () => {
+  const handleExit = async () => {
     if (onExitToStore) {
       onExitToStore();
     } else {
       window.location.hash = '';
+      await logoutUser();
       if (onSelectView) onSelectView('store');
     }
   };

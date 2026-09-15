@@ -49,7 +49,7 @@ export const CashierDashboard: React.FC<CashierDashboardProps> = ({ onOpenPOS, o
     branchSales,
     allProfiles,
     currentUser,
-    switchUserRole,
+    logoutUser,
     shifts,
     activeShift,
     openShift,
@@ -140,8 +140,9 @@ export const CashierDashboard: React.FC<CashierDashboardProps> = ({ onOpenPOS, o
   });
 
   // Handle Switch to another cashier on the same branch
-  const handleSwitchBranchCashier = (cashierId: string) => {
-    switchUserRole('cashier', currentBranch.id, cashierId);
+  const handleSwitchBranchCashier = async (_cashierId: string) => {
+    await logoutUser();
+    window.location.hash = '#cashier';
   };
 
   // Open shift action
@@ -261,12 +262,12 @@ export const CashierDashboard: React.FC<CashierDashboardProps> = ({ onOpenPOS, o
     setStaffPhone('+20 ');
   };
 
-  const handleExit = () => {
+  const handleExit = async () => {
     if (onExitToStore) {
       onExitToStore();
     } else {
       window.location.hash = '';
-      switchUserRole('customer');
+      await logoutUser();
     }
   };
 

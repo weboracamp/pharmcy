@@ -29,7 +29,7 @@ export const DriverView: React.FC<DriverViewProps> = ({ onExitToStore }) => {
     updateOrderStatus,
     currentUser,
     allProfiles,
-    switchUserRole,
+    logoutUser,
     branches
   } = usePharmacy();
 
@@ -88,42 +88,22 @@ export const DriverView: React.FC<DriverViewProps> = ({ onExitToStore }) => {
             </div>
           </div>
 
-          {/* Actions: Test Driver Switcher + Exit to Store */}
+          {/* Actions: Exit to Store */}
           <div className="flex items-center gap-2">
-            <div className="text-end">
-              <label className="text-[10px] text-slate-400 block mb-0.5">
-                {isAr ? 'تبديل السائق:' : 'Test Driver:'}
-              </label>
-              <select
-                value={currentUser.id}
-                onChange={(e) => {
-                  const driver = driverProfiles.find(d => d.id === e.target.value);
-                  if (driver) switchUserRole('driver');
-                }}
-                className="bg-slate-800 text-teal-300 text-xs font-bold rounded-lg px-2 py-1 border border-slate-700 outline-none"
-              >
-                {driverProfiles.map(d => (
-                  <option key={d.id} value={d.id}>
-                    {d.full_name.split(' ')[0]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (onExitToStore) {
                   onExitToStore();
                 } else {
                   window.location.hash = '';
-                  switchUserRole('customer');
+                  await logoutUser();
                 }
               }}
-              className="mt-3.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 border border-slate-700 cursor-pointer min-h-[36px]"
+              className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border border-slate-700 cursor-pointer min-h-[36px] transition-colors"
               title={isAr ? 'العودة للمتجر' : 'Exit to Store'}
             >
               <LogOut className="w-3.5 h-3.5 rtl:rotate-180" />
-              <span className="hidden sm:inline">{isAr ? 'المتجر' : 'Store'}</span>
+              <span>{isAr ? 'خروج للمتجر' : 'Exit to Store'}</span>
             </button>
           </div>
         </div>

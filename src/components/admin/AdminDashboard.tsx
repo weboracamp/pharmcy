@@ -63,7 +63,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToStore })
     categories,
     shifts,
     getShiftSummary,
-    switchUserRole
+    logoutUser
   } = usePharmacy();
 
   const isAr = language === 'ar';
@@ -304,12 +304,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onExitToStore })
 
           {/* Exit to Public Store button */}
           <button
-            onClick={() => {
+            onClick={async () => {
               if (onExitToStore) {
                 onExitToStore();
               } else {
                 window.location.hash = '';
-                switchUserRole('customer');
+                await logoutUser();
               }
             }}
             className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-3.5 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700 min-h-[44px]"

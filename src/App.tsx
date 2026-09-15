@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 const PharmacyAppContent: React.FC = () => {
-  const { currentUser, language, switchUserRole } = usePharmacy();
+  const { currentUser, language, switchUserRole, logoutUser } = usePharmacy();
   const isAr = language === 'ar';
 
   const [currentView, setCurrentView] = useState<'store' | 'pos' | 'cashier' | 'admin' | 'driver'>('store');
@@ -27,6 +27,8 @@ const PharmacyAppContent: React.FC = () => {
   const [authModalType, setAuthModalType] = useState<'owner' | 'cashier' | 'driver' | null>(null);
 
   // Hidden Route Listener (#owner, #cashier, #driver)
+  // Visiting the plain domain (or '/') ALWAYS defaults to the public storefront.
+  // Owner/Cashier/Driver dashboards ONLY load if the URL explicitly contains the corresponding hash AND user is authenticated.
   useEffect(() => {
     const handleHashRouting = () => {
       const hash = window.location.hash.toLowerCase().trim();
@@ -36,6 +38,7 @@ const PharmacyAppContent: React.FC = () => {
           setCurrentView('admin');
           setAuthModalType(null);
         } else {
+          setCurrentView('store');
           setAuthModalType('owner');
         }
       } else if (hash === '#cashier' || hash === '#/cashier') {
@@ -43,6 +46,7 @@ const PharmacyAppContent: React.FC = () => {
           setCurrentView('cashier');
           setAuthModalType(null);
         } else {
+          setCurrentView('store');
           setAuthModalType('cashier');
         }
       } else if (hash === '#driver' || hash === '#/driver') {
@@ -50,13 +54,14 @@ const PharmacyAppContent: React.FC = () => {
           setCurrentView('driver');
           setAuthModalType(null);
         } else {
+          setCurrentView('store');
           setAuthModalType('driver');
         }
       } else {
+        // Root path / no hash / unrecognized hash:
+        // Always strictly show public storefront
         setAuthModalType(null);
-        if (currentUser.role === 'customer') {
-          setCurrentView('store');
-        }
+        setCurrentView('store');
       }
     };
 
@@ -65,23 +70,11 @@ const PharmacyAppContent: React.FC = () => {
     return () => window.removeEventListener('hashchange', handleHashRouting);
   }, [currentUser.role]);
 
-  // Synchronize view when currentUser role changes
-  useEffect(() => {
-    if (currentUser.role === 'admin') {
-      setCurrentView('admin');
-    } else if (currentUser.role === 'cashier' || currentUser.role === 'manager') {
-      setCurrentView('cashier');
-    } else if (currentUser.role === 'driver') {
-      setCurrentView('driver');
-    } else if (currentUser.role === 'customer') {
-      setCurrentView('store');
-    }
-  }, [currentUser.role]);
-
   // Clean Exit to Store Handler
-  const handleExitToStore = () => {
+  const handleExitToStore = async () => {
     window.location.hash = '';
     setAuthModalType(null);
+    await logoutUser();
     switchUserRole('customer');
     setCurrentView('store');
   };
